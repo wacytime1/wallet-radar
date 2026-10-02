@@ -16,6 +16,7 @@ def _client_with_caps(monkeypatch, caps):
         return caps
 
     monkeypatch.setattr(server, "probe_capabilities", fake_probe)
+    monkeypatch.setattr(server.config.core_config, "API_KEY", "offline-test-key")
     return TestClient(server.app)
 
 

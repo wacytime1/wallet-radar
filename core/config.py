@@ -2,10 +2,10 @@
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 
 ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env")
+_env = dotenv_values(ROOT / ".env")
 
 try:
     import truststore
@@ -14,8 +14,8 @@ try:
 except ImportError:
     pass
 
-API_KEY = os.environ.get("COINGECKO_API_KEY", "")
-ENVIRONMENT = os.environ.get("COINGECKO_ENVIRONMENT", "pro").strip().lower()
+API_KEY = _env.get("COINGECKO_API_KEY") or ""
+ENVIRONMENT = (_env.get("COINGECKO_ENVIRONMENT") or "pro").strip().lower()
 
 if ENVIRONMENT == "demo":
     BASE_URL = "https://api.coingecko.com/api/v3"

@@ -19,6 +19,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field, ConfigDict
 
 from core import wallets as w
 from core.articlekit import build as build_article_kit
@@ -32,7 +33,7 @@ from core.report import build as build_report
 from core.store import Store
 
 from . import backtest as backtest_mod
-from . import chains, config, profile, runs, scan, tokens, xray
+from . import chains, config, profile, research, runs, scan, tokens, xray
 from .follow import FollowEngine
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -57,7 +58,10 @@ state: dict = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.client = CoinGeckoClient()
-    state["capabilities"] = await probe_capabilities(app.state.client)
+    state["capabilities"] = await probe_capabilities(app.state.client) if config.core_config.API_KEY else {
+        "paid": False, "analyst": False, "websocket": False,
+        "upgrade_url": config.core_config.PRICING_URL,
+    }
     state["store"] = Store("state.db")
     yield
     for run in state["follow_runs"].values():
@@ -69,7 +73,7 @@ async def lifespan(app: FastAPI):
     await app.state.client.close()
 
 
-app = FastAPI(title="Smart Money Radar", lifespan=lifespan)
+app = FastAPI(title="Wallet Radar", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(WEB)), name="static")
 app.mount("/core-web", StaticFiles(directory=str(ROOT / "core" / "web")), name="core-web")
 app.mount("/brand", StaticFiles(directory=str(ROOT / "core" / "brand")), name="brand")
@@ -146,7 +150,7 @@ def recorder(demo: str, tag: str) -> Recorder:
 
 # ---------- pages ----------
 
-PAGES = {"/": "index.html", "/xray": "index.html", "/wallet": "index.html", "/follow": "index.html", "/runs": "index.html", "/kit": "index.html"}
+PAGES = {"/": "index.html", "/xray": "starter.html", "/wallet": "starter.html", "/follow": "starter.html", "/runs": "starter.html", "/kit": "starter.html"}
 
 
 def _page(name: str):
@@ -158,6 +162,88 @@ for _path, _file in PAGES.items():
 
 
 # ---------- meta ----------
+
+
+class ResearchFilters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    min_pnl: float = Field(10000, allow_inf_nan=False)
+    min_win_rate: float = Field(.55, ge=0, le=1, allow_inf_nan=False)
+    min_trades: int = Field(20, ge=0)
+    max_trades: int | None = Field(5000, ge=0)
+    max_days: float = Field(30, ge=0, allow_inf_nan=False)
+    min_tokens: int = Field(2, ge=0, le=15)
+    recently_active: bool = False
+    exclude_bots: bool = True
+    exclude_infra: bool = True
+
+
+class ShortlistRequest(BaseModel):
+    run_id: str
+    filters: ResearchFilters = Field(default_factory=ResearchFilters)
+
+
+_research_lock = asyncio.Lock()
+
+
+@app.get("/api/research/config")
+def research_config():
+    return {
+        "chains": [{"id": c, "name": config.core_config.CHAINS[c], "capabilities": config.core_config.wallet_caps(c)}
+                   for c in config.core_config.WALLET_CHAINS if c in config.core_config.CHAINS
+                   and config.core_config.wallet_caps(c).get("pnl") and config.core_config.wallet_caps(c).get("trades")],
+        "sources": config.SOURCES, "default_chain": config.DEFAULT_CHAIN,
+        "filters": ResearchFilters().model_dump(), "key_configured": bool(config.core_config.API_KEY),
+    }
+
+
+@app.get("/api/research/scan")
+async def research_scan(chain: str = "base", source: str = "trending_1h", n_tokens: int = 8, refresh: bool = False, max_wallets: int = Query(config.MAX_FULL_PROFILES_PER_SCAN, ge=1, le=config.MAX_FULL_PROFILES_PER_SCAN), max_trades: int = Query(5000, ge=-1)):
+    if chain not in config.core_config.WALLET_CHAINS or source not in config.SOURCES or n_tokens not in (3, 5, 8, 10, 15):
+        raise HTTPException(400, "Choose a supported network, source and token count.")
+
+    async def events():
+        def event(name, data):
+            return f"event: {name}\ndata: {json.dumps(data, allow_nan=False)}\n\n"
+        if not config.core_config.API_KEY:
+            yield event("fail", {"error": "CoinGecko API key is not configured."})
+            return
+        if _research_lock.locked():
+            yield event("fail", {"error": "A scan is already running. Try again when it finishes."})
+            return
+        async with _research_lock:
+            try:
+                async for name, data in research.stream(chain, source, n_tokens, refresh, max_wallets, None if max_trades == -1 else max_trades):
+                    yield event(name, data)
+            except Exception as exc:
+                yield event("fail", {"error": research.safe_error(exc)})
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.post("/api/research/shortlist")
+def research_shortlist(body: ShortlistRequest):
+    result = research.get_run(body.run_id)
+    if result is None:
+        raise HTTPException(404, "Scan expired. Run a new scan.")
+    submitted = research.Filters(**body.filters.model_dump())
+    rows = research.shortlist(result, submitted)
+    rejected_by = {}
+    for row in research.current_rows(result):
+        for reason in research.rejection_reasons(row, submitted):
+            rejected_by[reason] = rejected_by.get(reason, 0) + 1
+    return {"rows": rows, "passed_count": len(rows), "evaluated_count": len(result["rows"]),
+            "applied_filters": body.filters.model_dump(), "rejected_by": rejected_by}
+
+
+@app.get("/api/research/wallet/{address}")
+def research_wallet(address: str, run_id: str):
+    result = research.get_run(run_id)
+    if result is None:
+        raise HTTPException(404, "Scan expired. Run a new scan.")
+    row = next((r for r in result["rows"] if r["address"] == address), None)
+    if row is None:
+        raise HTTPException(404, "Wallet was not profiled in this scan.")
+    return row
 
 
 @app.get("/api/capabilities")

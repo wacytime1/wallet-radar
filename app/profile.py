@@ -37,6 +37,7 @@ def wallet_networks(address: str, chain: str) -> list[str]:
 async def _section(coro, skip: bool = False):
     """Runs one endpoint call and returns (status, data): ok | unavailable | locked | error."""
     if skip:
+        coro.close()
         return "unavailable", None
     try:
         return "ok", await coro

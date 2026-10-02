@@ -2,7 +2,7 @@
 from core import config as core_config
 
 # The chain the app opens on. The picker lists every network from GET /onchain/networks (app/chains.py).
-DEFAULT_CHAIN = "solana"
+DEFAULT_CHAIN = "base"
 
 SOURCES = {
     "trending_1h": "Trending (1h)",
@@ -11,8 +11,11 @@ SOURCES = {
     "safe_movers": "Safe movers",
 }
 
-DEFAULT_TOP_N_TOKENS = 10
+DEFAULT_TOP_N_TOKENS = 8
 DEFAULT_WALLETS_PROFILED = 30
+TARGET_RESEARCHABLE_PROFILES = 50
+MAX_FULL_PROFILES_PER_SCAN = 300
+PROFILE_BATCH_SIZE = 30
 DEFAULT_BUDGET_USD = 100
 DEFAULT_FOLLOW_POLL_S = 30
 DEFAULT_RESCAN_HOURS = 6

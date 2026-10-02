@@ -126,15 +126,18 @@ async def _recent_traders_for_tokens(client: CoinGeckoClient, chain: str, tokens
             ts = _ts(r.get("block_timestamp"))
             if ts and (c["recent_last_ts"] is None or ts > c["recent_last_ts"]):
                 c["recent_last_ts"] = ts
-            c["recent_tokens"].add(token["symbol"])
+            c["recent_tokens"].add(token["address"])
     return by_wallet
 
 
 async def _wallets_for_tokens(client: CoinGeckoClient, chain: str, source: str, tokens: list[dict]) -> dict:
+    warnings = []
     async def top_traders_for(token: dict):
         try:
             traders = await asyncio.wait_for(client.top_traders(chain, token["address"], n=25), timeout=PER_CALL_TIMEOUT_S)
-        except Exception:
+        except Exception as exc:
+            from .research import safe_error
+            warnings.append(safe_error(exc))
             traders = []
         return token, traders
 
@@ -170,6 +173,8 @@ async def _wallets_for_tokens(client: CoinGeckoClient, chain: str, source: str, 
             c["bought_seen_usd"] += float(t.get("total_buy_usd") or 0)
             c["realized_seen_usd"] += float(t.get("realized_pnl_usd") or 0)
             c["trades_seen"] += (t.get("total_buy_count") or 0) + (t.get("total_sell_count") or 0)
+            if likely_bot_row(t):
+                c.setdefault("discovery_bot_reasons", []).append(f"token {token['address']}: buys+sells={(t.get('total_buy_count') or 0)+(t.get('total_sell_count') or 0)} >1500")
             c["likely_bot"] = c["likely_bot"] or likely_bot_row(t)
 
     now = time.time()
@@ -190,11 +195,20 @@ async def _wallets_for_tokens(client: CoinGeckoClient, chain: str, source: str, 
                 "likely_bot": rc["recent_trades_seen"] > 20,
                 "known_infra": known_infra(rc["address"]),
             }
+        if c["likely_bot"] and not c.get("discovery_bot_reasons"):
+            c["discovery_bot_reasons"] = [f"recent-only candidate: {rc['recent_trades_seen']} sampled pool trades >20"]
         c["recent_trades_seen"] = rc["recent_trades_seen"]
         c["recent_volume_usd"] = round(rc["recent_volume_usd"])
         c["recent_last_ts"] = rc["recent_last_ts"]
         c["hours_since_recent_trade"] = round((now - rc["recent_last_ts"]) / 3600, 1) if rc["recent_last_ts"] else None
         c["recently_active"] = True
+        # Count distinct token addresses from both top traders and recent pool trades.
+        already_seen = {t["address"] for t in c["seen_in"]}
+        for token in tokens:
+            if token["address"] in rc["recent_tokens"] and token["address"] not in already_seen:
+                c["seen_in"].append({"symbol": token["symbol"], "address": token["address"],
+                                     "image_url": token.get("image_url"), "realized_usd": None})
+                already_seen.add(token["address"])
 
     for c in by_wallet.values():
         c.setdefault("recently_active", False)
@@ -212,4 +226,4 @@ async def _wallets_for_tokens(client: CoinGeckoClient, chain: str, source: str, 
         c["tokens_seen_in"] = len(c["seen_in"])
         c.pop("recent_tokens", None)
 
-    return {"chain": chain, "source": source, "tokens": tokens, "candidates": candidates}
+    return {"chain": chain, "source": source, "tokens": tokens, "candidates": candidates, "warnings": sorted(set(warnings))}

@@ -1,34 +1,40 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Smart Money Radar · CoinGecko API</title>
-<link rel="stylesheet" href="/core-web/theme.css"><link rel="stylesheet" href="/static/styles.css"><link rel="stylesheet" href="/static/follow-overrides.css">
+<title>Wallet Radar · CoinGecko API</title>
+<link rel="stylesheet" href="/core-web/theme.css"><link rel="stylesheet" href="/static/radar.css">
+<script defer src="/static/research-filters.js"></script>
+<script defer src="/static/radar.js"></script>
 </head>
-<body><div class="app-shell">
-<header class="hero"><div class="brand"><div id="cg-badge"></div><div><div class="eyebrow">ON-CHAIN DISCOVERY LAB</div><h1>Smart Money Radar</h1><p>Find the wallets behind the move, understand their edge, and paper-follow the signal.</p></div></div><div class="hero-stats"><div><b id="hero-chain-count">—</b><span>networks indexed</span></div><div><b>4</b><span>evidence lanes</span></div></div></header>
-<nav class="tabs"><button class="active" data-tab="scan">Radar</button><button data-tab="wallets">Wallets <i id="wallet-count">0</i></button><button data-tab="follow">Follow</button><button data-tab="runs">Runs</button></nav>
-
-<section id="panel-scan" class="panel active">
-  <div id="scan-locked"></div>
-  <div class="control-card"><div class="control-title"><div><div class="eyebrow">01 · DISCOVER</div><h2>Scan the market pulse</h2><p>Use a chain-wide shortlist, then surface the wallets recurring across the tokens.</p></div><button class="primary big" id="scan-run">Run radar <span>↗</span></button></div><div class="radar-search"><span>⌕</span><input id="radar-search" placeholder="Search any token, pool, ticker, contract, or wallet…" autocomplete="off"><button class="ghost" id="radar-search-btn">Search</button></div><div id="radar-search-results" class="radar-search-results"></div>
-    <div id="token-queue" class="token-queue"></div>
-    <div class="controls"><label class="field wide">Network <div class="select-wrap"><input id="scan-chain-search" placeholder="Search every CoinGecko network…" autocomplete="off"><select id="scan-chain"></select></div></label><label class="field">Signal source<select id="scan-source"></select></label><label class="field">Tokens<select id="scan-n-tokens"><option>5</option><option selected>10</option><option>20</option></select></label></div>
-    <div id="chain-results" class="chain-results"></div><div class="statusline"><span class="live-dot"></span><span id="scan-status">Ready for a scan</span><span class="status-spacer"></span><span id="scan-credits">Analyst endpoints are plan-gated</span></div>
-  </div>
-  <div id="scan-results"></div>
-</section>
-
-<section id="panel-wallets" class="panel"><div class="section-head"><div><div class="eyebrow">02 · UNDERSTAND</div><h2>Wallet intelligence</h2><p>Open a wallet for holdings, performance, trades, transfers, and per-chain capability notes.</p></div><div class="inline-search"><input id="wallet-address" placeholder="Paste an EVM or Solana address"><button class="ghost" id="wallet-open">Open profile</button></div></div><div class="card"><div class="table-head"><span>PROFILED CANDIDATES <small id="wallets-progress" class="muted"></small></span><div class="filters"><select id="wallet-filter-label"><option value="all">All labels</option><option value="proven_trader">Proven trader</option><option value="whale">Whale</option><option value="flipper">Flipper</option><option value="one_hit">One-hit</option><option value="dormant">Dormant</option><option value="bot_like">Bot-like</option><option value="protocol">Protocol / contract</option></select><label><input type="checkbox" id="wallet-filter-copyable"> Copyable only</label><label><input type="checkbox" id="wallet-filter-recent"> Recently active only (≤3d)</label><span class="info-tip" tabindex="0" title="Signal, Skill, Copyability and &quot;Last active&quot; are NOT CoinGecko data. They're heuristics computed by this tool's own code from the raw trade/PnL data the CoinGecko API returns — the logic lives in core/wallets.py, and you should tune it yourself if a label or score doesn't match your own judgment.">ⓘ what do these mean?</span></div></div><div class="table-scroll"><table><thead><tr><th></th><th>Wallet</th><th>Signal</th><th>Win rate</th><th>Skill</th><th>Copyability</th><th>P&amp;L</th><th>Last active</th></tr></thead><tbody id="wallets-table-body"><tr><td colspan="8" class="empty-note">Scan first, then profile the wallets that recur in the radar.</td></tr></tbody></table></div></div></section>
-
-<section id="panel-follow" class="panel"><div class="section-head"><div><div class="eyebrow">03 · PAPER FOLLOW</div><h2>Follow the signal</h2><p>Turn a researched wallet list into one or more observable, paper-only runs — each with its own basket, cash, and assumptions.</p></div><div class="action-row"><button class="ghost" id="follow-auto-pick">Auto-pick top 5</button><span class="muted" id="follow-selected-count">0 wallets selected</span><button class="primary" id="follow-add-instance">+ Add instance</button></div></div>
-<div class="card" id="follow-config-card" style="display:none"><div class="card-title">Start a new paper run</div><div class="form-grid"><label class="field">Run label (optional)<input id="run-label" placeholder="e.g. Robinhood top 5"></label><label class="field">Starting cash ($)<input type="number" id="run-starting-cash" value="1000" min="10"></label><label class="field">Poll interval (s)<input type="number" id="follow-poll-s" value="30" min="10"></label><label class="field">Max position (%)<input type="number" id="run-max-position-pct" value="20" min="1" max="100"></label><label class="field">Slippage (bps)<input type="number" id="run-slippage-bps" value="30" min="0"></label><label class="field">Fee (bps)<input type="number" id="run-fee-bps" value="25" min="0"></label></div><div class="action-row"><button class="primary big" id="follow-start">Start paper run</button><button class="ghost" id="follow-cancel-instance">Cancel</button></div><p class="notice">Paper fills only. The API supplies observations; this tool never submits trades.</p></div>
-<div id="follow-alert-box"></div>
-<div class="table-head" id="follow-runs-head"><span>PAPER RUNS <small id="follow-runs-count" class="muted"></small></span><button class="ghost" id="follow-clear-stopped">Clear stopped</button></div>
-<div id="follow-runs-list" class="follow-runs-list"><div class="empty-note">No paper runs yet. Select wallets in Radar or use auto-pick, then click "+ Add instance" to configure and start a run.</div></div>
-</section>
-
-<section id="panel-runs" class="panel"><div class="section-head"><div><div class="eyebrow">04 · PUBLISHABLE EVIDENCE</div><h2>Runs &amp; reports</h2><p>Open a self-contained report in a new tab, or generate an article kit for a creator post.</p></div></div><div id="runs-list" class="run-grid"></div></section>
-<footer id="cg-footer"></footer></div>
-<div id="drawer-backdrop" class="drawer-backdrop"><aside class="drawer"><button class="close" id="drawer-close">×</button><div id="drawer-body"></div></aside></div>
-<script src="/core-web/brand.js"></script><script src="/static/app.js"></script></body></html>
+<body>
+<div class="shell">
+<header><div><div class="eyebrow">ON-CHAIN WALLET RESEARCH</div><h1>Wallet Radar</h1><p>Find recurring profitable wallets behind active tokens.</p></div>
+<a class="attribution" href="https://www.coingecko.com/en/api" target="_blank" rel="noopener"><span>Data powered by</span><img src="/brand/coingecko-api-on-light.svg" alt="CoinGecko API"></a></header>
+<nav aria-label="Main navigation"><span class="nav-active">Radar</span><span class="muted">Your rules. Real data. A focused shortlist.</span></nav>
+<ol class="pipeline"><li id="step-tokens">1 <span>Active tokens</span></li><li id="step-traders">2 <span>Top traders</span></li><li id="step-profiles">3 <span>Wallet analysis</span></li><li id="step-filters">4 <span>My filters</span></li><li id="step-shortlist">5 <span>Shortlist</span></li></ol>
+<section class="card discovery" aria-labelledby="discovery-title"><div class="section-head"><div><h2 id="discovery-title">Find wallets behind the activity</h2><p>Discover a small token set, then analyse ranked batches until the researchable target or profile safety limit.</p></div><div class="actions"><button id="refresh" type="button" disabled>Refresh from API</button><button id="scan" class="primary" type="button" disabled>Scan</button></div></div>
+<div class="controls"><label>Network<select id="chain"><option value="base">Base</option></select></label><label>Discovery source<select id="source"><option value="trending_1h">Trending 1h</option></select></label><label>Tokens to scan<select id="count"><option>5</option><option selected>8</option><option>10</option><option>15</option></select></label><span class="limit">On demand · 30-minute profile cache</span></div>
+<div class="status"><span id="status" role="status" aria-live="polite">Loading configuration…</span><span id="cache-status"></span></div>
+<div id="tokens" class="tokens" aria-label="Tokens in this scan"></div><div id="error" class="error" role="alert" hidden></div></section>
+<div class="workspace">
+<aside class="card filters"><div class="section-head"><h2>My filters</h2><button id="reset" class="text-button" type="button">Reset</button></div><form id="filters">
+<label>Minimum realized PnL ($)<input name="min_pnl" type="number" value="10000" step="any"><small>Must be greater than this value</small></label>
+<label>Minimum win rate (%)<input name="min_win_rate" type="number" value="55" min="0" max="100" step="any"></label>
+<label>Minimum trades<input name="min_trades" type="number" value="20" min="0" step="1"></label>
+<label>Maximum trades (optional)<input name="max_trades" type="number" value="5000" min="0" step="1"><small>Clear to disable · activity limit, not a bot label</small></label>
+<label>Maximum days since last trade<input name="max_days" type="number" value="30" min="0" step="any"></label>
+<label>Minimum tokens seen in scan<input name="min_tokens" type="number" value="2" min="0" max="15" step="1"></label>
+<label class="check"><input name="recently_active" type="checkbox"> Recently active (≤3 days)</label>
+<label class="check"><input name="exclude_bots" type="checkbox" checked> Exclude likely bots</label>
+<label class="check"><input name="exclude_infra" type="checkbox" checked> Exclude infrastructure</label>
+<button class="primary" id="apply" type="submit" disabled>Apply my filters</button></form><p class="filter-note">Filters, labels and scores are computed by this app. Unknown metrics cannot pass a numeric filter.</p></aside>
+<section class="results" aria-labelledby="shortlist-title"><div class="funnel" aria-label="Scan summary"><div><b id="total-tokens">—</b><span>tokens scanned</span></div><div><b id="total-candidates">—</b><span>wallet candidates</span></div><div><b id="total-discovery">—</b><span>passed discovery pre-filter</span></div><div><b id="total-profiles">—</b><span>wallets profiled</span></div><div><b id="total-researchable">—</b><span>researchable profiles</span></div><div class="highlight"><b id="total-passed">—</b><span>passed my filters</span></div></div>
+<div class="card shortlist"><div class="section-head"><div><h2 id="shortlist-title">Your wallet shortlist</h2><p id="shortlist-note">Run a scan to find wallets worth investigating.</p></div><label class="sort">Sort by<select id="sort"><option value="research_score">Research Score</option><option value="realized_pnl_usd">Realized PnL</option><option value="win_rate">Win rate</option><option value="trades">Trades</option><option value="tokens_seen_in">Tokens seen</option><option value="last_seen_ts">Last active</option></select></label></div>
+<div class="table-scroll"><table><thead><tr><th>Wallet</th><th title="Computed by this app from CoinGecko API data.">Research<br>Score ⓘ</th><th>Realized PnL</th><th>Win Rate</th><th>Trades</th><th>Seen In</th><th>Last Active</th><th>Why shortlisted</th></tr></thead><tbody id="rows"><tr><td colspan="8" class="empty">Start with Base + Trending 1h, then click Scan.</td></tr></tbody></table></div>
+<div class="data-note"><span id="requests">API credits used this scan: unavailable</span><span>CoinGecko data → your research rules</span></div></div>
+<div id="quality-debug"></div><p id="warnings" class="warnings" role="status"></p><p class="method">Realized PnL uses the API lifetime total when available; fallback uses FIFO matching of returned trades. Win rate and trade count are sample-based: open a wallet for the basis of each metric.</p></section></div>
+<footer><span>Research only. Not financial advice.</span><div><a href="https://www.coingecko.com/en/api">API</a><a href="https://www.coingecko.com/en/api/pricing">Pricing</a><a href="https://docs.coingecko.com">Docs</a><a href="https://docs.coingecko.com/ai-integration">Agent Skill / MCP</a></div></footer>
+</div>
+<div id="drawer-overlay" class="drawer-overlay" hidden><aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1"><button id="close-drawer" class="close" type="button" aria-label="Close wallet details">×</button><div id="drawer-content"></div></aside></div>
+</body></html>
