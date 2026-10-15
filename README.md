@@ -9,7 +9,7 @@ Find recurring profitable wallets behind active tokens.
 
 **Active tokens → top traders → wallet analysis → my filters → shortlist**
 
-A focused research tool adapted from Smart Money Radar. Select Base (the default) or another supported network, choose Trending 1h / Trending 24h / New pools / Safe movers, and scan 5, 8, 10 or 15 tokens. The app deduplicates traders and recent pool participants, prioritizes recurring wallets, profiles ranked candidates in bounded batches, and applies your adjustable research filters. Click a shortlisted wallet to inspect its evidence without leaving the results.
+Select Base (the default) or another supported network, choose Trending 1h / Trending 24h / New pools / Safe movers, and scan 5, 8, 10 or 15 tokens. The app deduplicates traders and recent pool participants, prioritizes recurring wallets, profiles ranked candidates in bounded batches, and applies your adjustable research filters. Click a shortlisted wallet to inspect its evidence without leaving the results.
 
 ## Install and run
 
@@ -40,13 +40,13 @@ Open http://localhost:8000. Run tests offline with:
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-If `make` and `uv` are installed, the starter commands remain available: `make install`, `make test`, `make run`. Windows users can use the direct Python commands above.
+If `make` and `uv` are installed, the Makefile commands are available: `make install`, `make test`, `make run`. Windows users can use the direct Python commands above.
 
 ## Data and local research logic
 
 CoinGecko API supplies pools, tokens, top traders, wallet PnL, swap history and supported wallet balances. This app computes recurrence, FIFO matching, win rates, activity summaries, infrastructure/bot heuristics, Research Score and shortlist decisions. These derived results are not official CoinGecko fields or classifications. No AI scoring or invented market data is used.
 
-Realized PnL uses the API lifetime total where available, with the starter's sanity checks. If outliers are excluded, it can represent a cleaned sum from the returned token sample. If PnL is unavailable, the app may use FIFO matched lots in the returned wallet history. It does not claim 30-day PnL. Win rate uses profitable FIFO matched lots; with no matches it falls back to profitable sold tokens in the returned PnL sample. Trade count is buys plus sells in that token sample, or the returned wallet-trade count. The drawer explains the basis and limitations.
+Realized PnL uses the API lifetime total where available, with the app's PnL sanity checks. If outliers are excluded, it can represent a cleaned sum from the returned token sample. If PnL is unavailable, the app may use FIFO matched lots in the returned wallet history. It does not claim 30-day PnL. Win rate uses profitable FIFO matched lots; with no matches it falls back to profitable sold tokens in the returned PnL sample. Trade count is buys plus sells in that token sample, or the returned wallet-trade count. The drawer explains the basis and limitations.
 
 Research Score is deterministic: win rate contributes up to 50 points, positive realized PnL capped at $50,000 contributes up to 30, and sample size capped at 20 contributes up to 20. Sample size is the larger of FIFO matched lots and sold tokens. See `core/wallets.py` and `app/research.py`.
 
@@ -54,23 +54,23 @@ Default filters: PnL greater than $10,000, win rate at least 55%, at least 20 tr
 
 ## Coverage, caching and API usage
 
-The selector uses the starter's wallet-capable networks and `WALLET_CHAIN_CAPS`; Base is the default, not the only network. Start with Base, Ethereum or BNB Chain for the full workflow. Solana supports PnL and trade history, but its balances are marked unavailable. Endpoint coverage and plan errors are shown per section. One failed profile does not stop the scan.
+The selector uses the configured wallet-capable networks and `WALLET_CHAIN_CAPS`; Base is the default, not the only network. Start with Base, Ethereum or BNB Chain for the full workflow. Solana supports PnL and trade history, but its balances are marked unavailable. Endpoint coverage and plan errors are shown per section. One failed profile does not stop the scan.
 
 Discovery/results are cached in memory for 10 minutes by chain, source and token count. Wallet profiles retain the 30-minute cache. Changing filters or opening details makes no CoinGecko requests. **Refresh from API** bypasses both caches for the selected network. Cached results and profiles are lost on restart; saved scan details expire after 30 minutes. Scans are on demand, with up to three concurrent wallet profiles and one research scan at a time.
 
 The client counts successful API requests; it does not know actual billed credits. The UI therefore reports successful requests and marks API credits unavailable, without estimating them. A small first scan helps conserve usage. API responses can be incomplete, and the returned pages are not a complete lifetime trade ledger.
 
-The original backend modules and secondary starter pages remain available, but the main screen focuses on research. This tool does not execute trades. Research only; not financial advice, a trading recommendation or a performance guarantee.
+The main screen focuses on wallet research; additional backend modules and secondary pages remain available. This tool does not execute trades. Research only; not financial advice, a trading recommendation or a performance guarantee.
 
 ## Before recording
 
 After configuring `.env`, verify a small Base scan, filter changes, the wallet drawer and supported data sections. Real API data and visual behavior must be checked locally before claiming the app is ready for recording. The provided CoinGecko SVG is used unchanged in the header.
 
 <!-- coingecko-links:start -->
-- CoinGecko API: https://www.coingecko.com/en/api?utm_source=github&utm_content=smart-money-radar
-- Pricing: https://www.coingecko.com/en/api/pricing?utm_source=github&utm_content=smart-money-radar
-- Docs: https://docs.coingecko.com?utm_source=github&utm_content=smart-money-radar
-- Agent Skill + MCP: https://docs.coingecko.com/ai-integration?utm_source=github&utm_content=smart-money-radar
+- CoinGecko API: https://www.coingecko.com/en/api?utm_source=github&utm_content=wacy_time1
+- Pricing: https://www.coingecko.com/en/api/pricing?utm_source=github&utm_content=wacy_time1
+- Docs: https://docs.coingecko.com?utm_source=github&utm_content=wacy_time1
+- Agent Skill + MCP: https://docs.coingecko.com/ai-integration?utm_source=github&utm_content=wacy_time1
 <!-- coingecko-links:end -->
 
 
